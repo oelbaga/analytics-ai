@@ -1,21 +1,21 @@
-'use client';
+"use client";
 
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { ChatMessage } from '@/types';
-import styles from './Message.module.scss';
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { ChatMessage } from "@/types";
+import styles from "./Message.module.scss";
 
 interface MessageProps {
   message: ChatMessage;
 }
 
 export default function Message({ message }: MessageProps) {
-  const isUser = message.role === 'user';
+  const isUser = message.role === "user";
 
   if (message.isLoading) {
     return (
       <div className={`${styles.wrapper} ${styles.assistant}`}>
-        <div className={styles.avatar}>AI</div>
+        <div className={styles.avatar}>Atlas</div>
         <div className={`${styles.bubble} ${styles.loading}`}>
           <span className={styles.dot} />
           <span className={styles.dot} />
@@ -32,10 +32,14 @@ export default function Message({ message }: MessageProps) {
       : styles.assistantBubble;
 
   return (
-    <div className={`${styles.wrapper} ${isUser ? styles.user : styles.assistant}`}>
+    <div
+      className={`${styles.wrapper} ${isUser ? styles.user : styles.assistant}`}
+    >
       {!isUser && (
-        <div className={`${styles.avatar} ${message.isError ? styles.errorAvatar : ''}`}>
-          {message.isError ? '!' : 'AI'}
+        <div
+          className={`${styles.avatar} ${message.isError ? styles.errorAvatar : ""}`}
+        >
+          {message.isError ? "!" : "Atlas"}
         </div>
       )}
       <div className={`${styles.bubble} ${bubbleClass}`}>
@@ -52,12 +56,14 @@ export default function Message({ message }: MessageProps) {
         )}
         <span className={styles.time}>
           {new Date(message.timestamp).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
+            hour: "2-digit",
+            minute: "2-digit",
           })}
         </span>
       </div>
-      {isUser && <div className={`${styles.avatar} ${styles.userAvatar}`}>You</div>}
+      {isUser && (
+        <div className={`${styles.avatar} ${styles.userAvatar}`}>You</div>
+      )}
     </div>
   );
 }
