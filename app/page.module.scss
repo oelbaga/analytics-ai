@@ -1,0 +1,15 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh; // dynamic viewport height — accounts for mobile browser chrome
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

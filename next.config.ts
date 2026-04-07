@@ -1,7 +1,12 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Vercel serverless functions can run up to 30s — GA4 + MySQL may need it
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '1mb',
+    },
+  },
 };
 
 export default nextConfig;
