@@ -34,9 +34,9 @@ export async function GET(req: NextRequest) {
         maxResponseTokens:   MAX_RESPONSE_TOKENS,
       },
       pricing: {
-        note: 'Estimates based on claude-opus-4-5 pricing. See ANTHROPIC_MODEL in .env.local.',
-        inputPer1MTokens:  15,
-        outputPer1MTokens: 75,
+        note: 'Estimates based on claude-haiku-4-5 pricing. See ANTHROPIC_MODEL in .env.local.',
+        inputPer1MTokens:  0.80,
+        outputPer1MTokens: 4.00,
       },
     });
   } catch (err) {

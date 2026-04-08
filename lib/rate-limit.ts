@@ -49,12 +49,12 @@ export interface UsageStats {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Rough cost estimate based on claude-opus-4-5 pricing.
+ * Rough cost estimate based on claude-haiku-4-5 pricing.
  * Update INPUT_COST_PER_TOKEN / OUTPUT_COST_PER_TOKEN if you switch models.
  * Actual pricing: https://www.anthropic.com/pricing
  */
-const INPUT_COST_PER_TOKEN  = 15   / 1_000_000; // $15  per million input tokens
-const OUTPUT_COST_PER_TOKEN = 75   / 1_000_000; // $75  per million output tokens
+const INPUT_COST_PER_TOKEN  = 0.80 / 1_000_000; // $0.80 per million input tokens
+const OUTPUT_COST_PER_TOKEN = 4.00 / 1_000_000; // $4.00 per million output tokens
 
 export function estimateCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens * INPUT_COST_PER_TOKEN) + (outputTokens * OUTPUT_COST_PER_TOKEN);
