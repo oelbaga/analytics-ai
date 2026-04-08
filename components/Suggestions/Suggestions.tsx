@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import styles from './Suggestions.module.scss';
 
 interface SuggestionsProps {
@@ -9,7 +9,7 @@ interface SuggestionsProps {
 
 // One question template per slot — applied to clients in order
 const TEMPLATES = [
-  (c: string) => `How many leads did ${c} get today?`,
+  (c: string) => `How many leads did ${c} get in the last 7 days?`,
   (c: string) => `Show me the last 10 leads for ${c}`,
   (c: string) => `How much traffic did ${c} receive last 7 days?`,
   (c: string) => `How many leads did ${c} get this month?`,
@@ -18,12 +18,12 @@ const TEMPLATES = [
 ];
 
 const FALLBACK_CLIENTS = [
-  'Seraphine',
-  'Skye Lofts',
-  'Vermella Harrison',
-  'Edison Lofts',
-  'Quinn JC',
-  'The Enclave',
+  'Aviva',
+  'Hudson House',
+  '505 Summit',
+  'Southend Lofts',
+  'Lia By Vermella',
+  'The Alary',
 ];
 
 export default function Suggestions({ onSelect }: SuggestionsProps) {
@@ -31,15 +31,6 @@ export default function Suggestions({ onSelect }: SuggestionsProps) {
     FALLBACK_CLIENTS.map((c, i) => TEMPLATES[i](c))
   );
 
-  useEffect(() => {
-    fetch('/api/clients/recent')
-      .then((r) => r.json())
-      .then(({ clients }: { clients: string[] }) => {
-        if (!clients?.length) return;
-        setSuggestions(clients.map((c, i) => TEMPLATES[i % TEMPLATES.length](c)));
-      })
-      .catch(() => {/* keep fallback */});
-  }, []);
 
   return (
     <div className={styles.wrapper}>
