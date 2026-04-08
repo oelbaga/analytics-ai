@@ -61,8 +61,8 @@ export default function Suggestions({ onSelect }: SuggestionsProps) {
         </div>
         <h2 className={styles.heading}>What would you like to know?</h2>
         <p className={styles.sub}>
-          Ask about leads or traffic for any client website. Try one
-          of&nbsp;these:
+          Ask about leads or traffic for any client website. Try
+          one&nbsp;of&nbsp;these:
         </p>
       </div>
       <div className={styles.grid}>

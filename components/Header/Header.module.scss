@@ -37,7 +37,7 @@
 }
 
 .brandName {
-  font-size: 1rem;
+  font-size: 1.8rem;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1;
@@ -60,7 +60,8 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.25rem 0.625rem 0.25rem 0.75rem;
+  // padding: 0.25rem 0.625rem 0.25rem 0.75rem;
+  padding: 0.4rem 0.625rem 0.3rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
@@ -96,13 +97,14 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 01rem;
+  padding: 0.4rem 01rem 0.2rem;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-secondary);
   font-size: 01rem;
   font-weight: 500;
+  line-height: 1.4;
   cursor: pointer;
   transition:
     background 0.15s,

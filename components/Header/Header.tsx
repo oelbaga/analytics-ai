@@ -21,7 +21,11 @@ export default function Header({ onNewChat, displayName }: HeaderProps) {
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <div className={styles.logo} onClick={onNewChat} style={{ cursor: "pointer" }}>
+        <div
+          className={styles.logo}
+          onClick={onNewChat}
+          style={{ cursor: "pointer" }}
+        >
           <Image
             src="/nwg_icon.svg"
             alt="New World Group"
@@ -42,7 +46,7 @@ export default function Header({ onNewChat, displayName }: HeaderProps) {
           onClick={onNewChat}
           title="New conversation"
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <path
               d="M8 1v14M1 8h14"
               stroke="currentColor"
