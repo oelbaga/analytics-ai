@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUsageStats } from '@/lib/rate-limit';
+import { MAX_LEADS_RETURNED, MAX_SEARCH_RESULTS, MAX_CONVERSATION_HISTORY, MAX_RESPONSE_TOKENS } from '@/lib/limits';
 
 // GET /api/usage — returns today's token usage and estimated cost
 export async function GET(req: NextRequest) {
@@ -15,10 +16,18 @@ export async function GET(req: NextRequest) {
         ...stats.today,
         estimatedCostUsd: Number(stats.today.estimatedCostUsd.toFixed(4)),
       },
+      allTime: {
+        ...stats.allTime,
+        estimatedCostUsd: Number(stats.allTime.estimatedCostUsd.toFixed(4)),
+      },
       thisHour: stats.thisHour,
       limits: {
-        perIpPerHour: Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 60),
-        dailyTotal:   Number(process.env.RATE_LIMIT_DAILY_TOTAL      ?? 500),
+        perIpPerHour:        Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 10),
+        dailyTotal:          Number(process.env.RATE_LIMIT_DAILY_TOTAL      ?? 20),
+        maxLeadsReturned:    MAX_LEADS_RETURNED,
+        maxSearchResults:    MAX_SEARCH_RESULTS,
+        conversationHistory: MAX_CONVERSATION_HISTORY,
+        maxResponseTokens:   MAX_RESPONSE_TOKENS,
       },
       pricing: {
         note: 'Estimates based on claude-opus-4-5 pricing. See ANTHROPIC_MODEL in .env.local.',

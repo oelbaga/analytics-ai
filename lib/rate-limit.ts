@@ -6,7 +6,7 @@ import { getSQL } from './neon-sql';
 const LIMIT_PER_IP_PER_HOUR = Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 10);
 
 // Max total requests across all users per day
-const LIMIT_DAILY_TOTAL = Number(process.env.RATE_LIMIT_DAILY_TOTAL ?? 20);
+const LIMIT_DAILY_TOTAL = Number(process.env.RATE_LIMIT_DAILY_TOTAL ?? 10);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,6 +18,12 @@ export interface RateLimitResult {
 
 export interface UsageStats {
   today: {
+    totalRequests: number;
+    totalInputTokens: number;
+    totalOutputTokens: number;
+    estimatedCostUsd: number;
+  };
+  allTime: {
     totalRequests: number;
     totalInputTokens: number;
     totalOutputTokens: number;
@@ -111,7 +117,7 @@ export async function logRequest(
 export async function getUsageStats(ip: string): Promise<UsageStats> {
   const sql = getSQL();
 
-  const [todayRows, hourRows] = await Promise.all([
+  const [todayRows, allTimeRows, hourRows] = await Promise.all([
     sql`
       SELECT
         COUNT(*)            AS total_requests,
@@ -121,6 +127,13 @@ export async function getUsageStats(ip: string): Promise<UsageStats> {
       WHERE created_at >= CURRENT_DATE
     `,
     sql`
+      SELECT
+        COUNT(*)            AS total_requests,
+        SUM(input_tokens)   AS total_input,
+        SUM(output_tokens)  AS total_output
+      FROM request_log
+    `,
+    sql`
       SELECT COUNT(*) AS count
       FROM request_log
       WHERE ip = ${ip}
@@ -128,15 +141,23 @@ export async function getUsageStats(ip: string): Promise<UsageStats> {
     `,
   ]);
 
-  const totalInputTokens  = Number(todayRows[0]?.total_input  ?? 0);
-  const totalOutputTokens = Number(todayRows[0]?.total_output ?? 0);
+  const todayInput    = Number(todayRows[0]?.total_input   ?? 0);
+  const todayOutput   = Number(todayRows[0]?.total_output  ?? 0);
+  const allTimeInput  = Number(allTimeRows[0]?.total_input  ?? 0);
+  const allTimeOutput = Number(allTimeRows[0]?.total_output ?? 0);
 
   return {
     today: {
-      totalRequests:     Number(todayRows[0]?.total_requests ?? 0),
-      totalInputTokens,
-      totalOutputTokens,
-      estimatedCostUsd:  estimateCost(totalInputTokens, totalOutputTokens),
+      totalRequests:    Number(todayRows[0]?.total_requests ?? 0),
+      totalInputTokens: todayInput,
+      totalOutputTokens: todayOutput,
+      estimatedCostUsd: estimateCost(todayInput, todayOutput),
+    },
+    allTime: {
+      totalRequests:    Number(allTimeRows[0]?.total_requests ?? 0),
+      totalInputTokens: allTimeInput,
+      totalOutputTokens: allTimeOutput,
+      estimatedCostUsd: estimateCost(allTimeInput, allTimeOutput),
     },
     thisHour: {
       ip,
