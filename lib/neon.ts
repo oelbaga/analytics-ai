@@ -2,10 +2,10 @@ import { getSQL } from './neon-sql';
 
 // ─── Conversations ────────────────────────────────────────────────────────────
 
-export async function createConversation(): Promise<string> {
+export async function createConversation(userId: string): Promise<string> {
   const sql = getSQL();
   const rows = await sql`
-    INSERT INTO conversations DEFAULT VALUES
+    INSERT INTO conversations (user_id) VALUES (${userId})
     RETURNING id
   `;
   return rows[0].id as string;

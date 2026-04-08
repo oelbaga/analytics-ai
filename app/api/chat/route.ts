@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create a new conversation in Neon if this is the first message
-    const conversationId = existingId ?? (await createConversation());
+    const conversationId = existingId ?? (await createConversation(session!.userId));
 
     // Load history from Neon — cap at last 20 messages (10 pairs) to
     // limit context size and avoid runaway token usage in long conversations

@@ -16,6 +16,16 @@ export interface RateLimitResult {
   retryAfterSeconds?: number;
 }
 
+export interface UserUsage {
+  userId: string;
+  username: string;
+  displayName: string | null;
+  totalRequests: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  estimatedCostUsd: number;
+}
+
 export interface UsageStats {
   today: {
     totalRequests: number;
@@ -29,6 +39,7 @@ export interface UsageStats {
     totalOutputTokens: number;
     estimatedCostUsd: number;
   };
+  byUser: UserUsage[];
   thisHour: {
     requestsByIp: number;
     ip: string;
@@ -117,7 +128,7 @@ export async function logRequest(
 export async function getUsageStats(ip: string): Promise<UsageStats> {
   const sql = getSQL();
 
-  const [todayRows, allTimeRows, hourRows] = await Promise.all([
+  const [todayRows, allTimeRows, hourRows, byUserRows] = await Promise.all([
     sql`
       SELECT
         COUNT(*)            AS total_requests,
@@ -139,6 +150,19 @@ export async function getUsageStats(ip: string): Promise<UsageStats> {
       WHERE ip = ${ip}
         AND created_at >= NOW() - INTERVAL '1 hour'
     `,
+    sql`
+      SELECT
+        u.id              AS user_id,
+        u.username,
+        u.display_name,
+        COUNT(r.id)       AS total_requests,
+        SUM(r.input_tokens)  AS total_input,
+        SUM(r.output_tokens) AS total_output
+      FROM users u
+      LEFT JOIN request_log r ON r.user_id = u.id
+      GROUP BY u.id, u.username, u.display_name
+      ORDER BY total_requests DESC NULLS LAST
+    `,
   ]);
 
   const todayInput    = Number(todayRows[0]?.total_input   ?? 0);
@@ -148,17 +172,30 @@ export async function getUsageStats(ip: string): Promise<UsageStats> {
 
   return {
     today: {
-      totalRequests:    Number(todayRows[0]?.total_requests ?? 0),
-      totalInputTokens: todayInput,
+      totalRequests:     Number(todayRows[0]?.total_requests ?? 0),
+      totalInputTokens:  todayInput,
       totalOutputTokens: todayOutput,
-      estimatedCostUsd: estimateCost(todayInput, todayOutput),
+      estimatedCostUsd:  estimateCost(todayInput, todayOutput),
     },
     allTime: {
-      totalRequests:    Number(allTimeRows[0]?.total_requests ?? 0),
-      totalInputTokens: allTimeInput,
+      totalRequests:     Number(allTimeRows[0]?.total_requests ?? 0),
+      totalInputTokens:  allTimeInput,
       totalOutputTokens: allTimeOutput,
-      estimatedCostUsd: estimateCost(allTimeInput, allTimeOutput),
+      estimatedCostUsd:  estimateCost(allTimeInput, allTimeOutput),
     },
+    byUser: byUserRows.map(r => {
+      const input  = Number(r.total_input  ?? 0);
+      const output = Number(r.total_output ?? 0);
+      return {
+        userId:            r.user_id as string,
+        username:          r.username as string,
+        displayName:       r.display_name as string | null,
+        totalRequests:     Number(r.total_requests ?? 0),
+        totalInputTokens:  input,
+        totalOutputTokens: output,
+        estimatedCostUsd:  estimateCost(input, output),
+      };
+    }),
     thisHour: {
       ip,
       requestsByIp: Number(hourRows[0]?.count ?? 0),

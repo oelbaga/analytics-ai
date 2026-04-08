@@ -52,9 +52,13 @@ try {
   await sql`
     CREATE TABLE IF NOT EXISTS conversations (
       id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id    UUID        REFERENCES users(id) ON DELETE CASCADE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+
+  // Migration for existing deployments
+  await sql`ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE CASCADE`;
 
   // ── Messages ───────────────────────────────────────────────────────────────
   await sql`

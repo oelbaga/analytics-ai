@@ -20,6 +20,10 @@ export async function GET(req: NextRequest) {
         ...stats.allTime,
         estimatedCostUsd: Number(stats.allTime.estimatedCostUsd.toFixed(4)),
       },
+      byUser: stats.byUser.map(u => ({
+        ...u,
+        estimatedCostUsd: Number(u.estimatedCostUsd.toFixed(4)),
+      })),
       thisHour: stats.thisHour,
       limits: {
         perIpPerHour:        Number(process.env.RATE_LIMIT_PER_IP_PER_HOUR ?? 10),
