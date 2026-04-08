@@ -1,43 +1,43 @@
-'use client';
+"use client";
 
-import { Suspense, useState, FormEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import styles from './page.module.scss';
+import { Suspense, useState, FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import styles from "./page.module.scss";
 
 // Split out the part that uses useSearchParams so it can be wrapped in Suspense
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get('from') ?? '/';
+  const from = searchParams.get("from") ?? "/";
 
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? 'Login failed.');
+        setError(data.error ?? "Login failed.");
         return;
       }
 
       router.replace(from);
       router.refresh();
     } catch {
-      setError('Could not reach the server. Please try again.');
+      setError("Could not reach the server. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -46,7 +46,9 @@ function LoginForm() {
   return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className={styles.field}>
-        <label className={styles.label} htmlFor="username">Username</label>
+        <label className={styles.label} htmlFor="username">
+          Username
+        </label>
         <input
           id="username"
           className={styles.input}
@@ -61,7 +63,9 @@ function LoginForm() {
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label} htmlFor="password">Password</label>
+        <label className={styles.label} htmlFor="password">
+          Password
+        </label>
         <input
           id="password"
           className={styles.input}
@@ -77,7 +81,7 @@ function LoginForm() {
       {error && <p className={styles.error}>{error}</p>}
 
       <button className={styles.submit} type="submit" disabled={loading}>
-        {loading ? 'Signing in…' : 'Sign in'}
+        {loading ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );
@@ -90,7 +94,7 @@ export default function LoginPage() {
         <div className={styles.brand}>
           <div className={styles.logo}>NW</div>
           <div className={styles.brandText}>
-            <span className={styles.brandName}>Analytics AI</span>
+            <span className={styles.brandName}>NWG Atlas</span>
             <span className={styles.brandSub}>New World Group</span>
           </div>
         </div>
