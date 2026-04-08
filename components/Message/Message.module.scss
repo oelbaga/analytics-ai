@@ -37,7 +37,7 @@
 }
 
 .bubble {
-  padding: 0.625rem 0.875rem;
+  padding: 0.625rem 01rem;
   border-radius: 12px;
   max-width: calc(100% - 44px);
   position: relative;
@@ -71,7 +71,7 @@
 
 .content {
   margin: 0;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
@@ -87,7 +87,7 @@
 // ─── Markdown content ─────────────────────────────────────────────────────────
 
 .markdown {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.6;
   color: inherit;
   word-break: break-word;
@@ -112,7 +112,7 @@
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.875rem;
+    font-size: 01rem;
     margin: 0.5rem 0 0.75rem;
     display: block;
     overflow-x: auto;
@@ -133,7 +133,7 @@
 
   th {
     font-weight: 600;
-    font-size: 0.8125rem;
+    font-size: 01rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
     opacity: 0.8;
@@ -150,7 +150,7 @@
   // Inline code
   code {
     font-family: "SF Mono", "Fira Code", monospace;
-    font-size: 0.8125rem;
+    font-size: 01rem;
     background: var(--border);
     padding: 0.1em 0.35em;
     border-radius: 4px;

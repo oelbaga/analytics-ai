@@ -37,10 +37,11 @@
 }
 
 .brandName {
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1;
+  letter-spacing: -0.05em;
 }
 
 .brandSub {
@@ -66,7 +67,7 @@
 }
 
 .username {
-  font-size: 0.8125rem;
+  font-size: 01rem;
   color: var(--text-secondary);
   font-weight: 500;
 }
@@ -95,12 +96,12 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.4rem 0.875rem;
+  padding: 0.4rem 01rem;
   background: transparent;
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-secondary);
-  font-size: 0.8125rem;
+  font-size: 01rem;
   font-weight: 500;
   cursor: pointer;
   transition:

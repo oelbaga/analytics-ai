@@ -19,8 +19,12 @@
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 
-  &::-webkit-scrollbar { width: 5px; }
-  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
   &::-webkit-scrollbar-thumb {
     background: var(--border);
     border-radius: 999px;
@@ -41,7 +45,7 @@
 
 .inputBar {
   border-top: 1px solid var(--border);
-  padding: 0.875rem 1.5rem 0.625rem;
+  padding: 01rem 1.5rem 0.625rem;
   background: var(--surface);
   flex-shrink: 0;
 }
@@ -54,7 +58,9 @@
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 0.5rem 0.5rem 0.5rem 1rem;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 
   &:focus-within {
     border-color: var(--accent);
@@ -68,7 +74,7 @@
   border: none;
   outline: none;
   resize: none;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   line-height: 1.5;
   color: var(--text-primary);
   font-family: inherit;
@@ -99,7 +105,10 @@
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.15s, opacity 0.15s, transform 0.1s;
+  transition:
+    background 0.15s,
+    opacity 0.15s,
+    transform 0.1s;
 
   &:hover:not(:disabled) {
     background: var(--accent-hover);
