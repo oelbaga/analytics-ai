@@ -21,7 +21,7 @@ export default function Header({ onNewChat, displayName }: HeaderProps) {
   return (
     <header className={styles.header}>
       <div className={styles.brand}>
-        <div className={styles.logo}>
+        <div className={styles.logo} onClick={onNewChat} style={{ cursor: "pointer" }}>
           <Image
             src="/nwg_icon.svg"
             alt="New World Group"
