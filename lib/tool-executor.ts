@@ -1,13 +1,46 @@
 import pool from './mysql';
 import { getTrafficData, getTopPages, getTopEvents } from './ga4';
 import { checkQueryValue } from './guards';
-import { MAX_LEADS_RETURNED, MAX_SEARCH_RESULTS, MAX_BREAKDOWN_ROWS, MAX_ANALYTICS_BREAKDOWN_ROWS } from './limits';
-import type { ClientRecord, LeadsResult, AnalyticsResult, ToolInput, RecentLeadsInput, RecentLeadsResult, LeadRecord, SearchLeadsInput, SearchLeadsResult, SearchableField, AnalyticsBreakdownInput, AnalyticsBreakdownResult } from '@/types';
+import { MAX_RECORDS_RETURNED, MAX_BREAKDOWN_ROWS, MAX_ANALYTICS_BREAKDOWN_ROWS } from './limits';
+import type { ClientRecord, LeadsResult, AnalyticsResult, ToolInput, RecentLeadsInput, RecentLeadsResult, LeadRecord, SearchLeadsInput, SearchLeadsResult, SearchableField, AnalyticsBreakdownInput, AnalyticsBreakdownResult, ListClientsInput, ListClientsResult } from '@/types';
 import type { RowDataPacket } from 'mysql2';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 type ClientRow = ClientRecord & RowDataPacket;
+
+// Core columns present in every list_xxx table
+const LEAD_CORE_SELECT = `id, name, email, phone, dt as submitted_at, source, medium, campaign`;
+
+// Optional columns that may not exist in every list_xxx table
+const LEAD_OPTIONAL_COLUMNS = [
+  'keywords', 'broker', 'price_range', 'property',
+  'home_type', 'how_did_you_hear', 'movein_date',
+] as const;
+
+/**
+ * Builds a SELECT string for a list_xxx table that safely includes optional
+ * columns only if they exist, falling back to NULL otherwise.
+ * Comments are always truncated to 200 chars to guard against spam payloads.
+ */
+async function buildLeadSelect(table: string): Promise<string> {
+  const [rows] = await pool.execute<any[]>(
+    `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    [table]
+  );
+  const existing = new Set(rows.map((r: any) => r.COLUMN_NAME as string));
+
+  const comments = existing.has('comments')
+    ? 'LEFT(comments, 200) as comments'
+    : 'NULL as comments';
+
+  const optional = LEAD_OPTIONAL_COLUMNS.map((col) =>
+    existing.has(col) ? col : `NULL as \`${col}\``
+  );
+
+  return `${LEAD_CORE_SELECT}, ${comments}, ${optional.join(', ')}`;
+}
 
 /**
  * Looks up all list rows that match the given client name (or domain).
@@ -112,7 +145,7 @@ export async function executeRecentLeads(input: RecentLeadsInput): Promise<Recen
     return { client_name, domain: '', total_available: 0, total_returned: 0, leads: [], error: clientGuard.reason };
   }
 
-  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), MAX_LEADS_RETURNED);
+  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), MAX_RECORDS_RETURNED);
 
   const clients = await resolveClient(client_name);
 
@@ -145,6 +178,9 @@ export async function executeRecentLeads(input: RecentLeadsInput): Promise<Recen
         whereParams.push(`${end_date} 23:59:59`);
       }
 
+      // Build SELECT dynamically so optional columns degrade to NULL if missing
+      const selectClause = await buildLeadSelect(table);
+
       // Run count and records queries in parallel
       const [countResult, rows] = await Promise.all([
         pool.execute<any[]>(
@@ -152,9 +188,7 @@ export async function executeRecentLeads(input: RecentLeadsInput): Promise<Recen
           whereParams
         ),
         pool.execute<any[]>(
-          `SELECT name, email, phone, form_name, dt as submitted_at,
-                  source, medium, campaign
-           FROM \`${table}\` ${whereClauses}
+          `SELECT ${selectClause} FROM \`${table}\` ${whereClauses}
            ORDER BY dt DESC LIMIT ?`,
           [...whereParams, safeLimit]
         ),
@@ -190,8 +224,8 @@ export async function executeRecentLeads(input: RecentLeadsInput): Promise<Recen
 // Strict whitelist — the field name goes directly into the SQL string
 // so it must never come from unvalidated user input.
 const ALLOWED_SEARCH_FIELDS: SearchableField[] = [
-  'email', 'phone', 'name', 'zip', 'address',
-  'broker', 'source', 'medium', 'campaign', 'form_name', 'assigned',
+  'id', 'email', 'phone', 'name', 'zip', 'address',
+  'broker', 'source', 'medium', 'campaign', 'keywords', 'assigned',
 ];
 
 /**
@@ -265,17 +299,18 @@ export async function executeLeadSearch(input: SearchLeadsInput): Promise<Search
 
       // Run count and records in parallel so we always know the real total
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Build SELECT dynamically so optional columns degrade to NULL if missing
+      const selectClause = await buildLeadSelect(table);
+
       const [countResult, rows] = await Promise.all([
         pool.execute<any[]>(
           `SELECT COUNT(*) as count FROM \`${table}\` ${whereClause}`,
           [normalizedValue]
         ),
         pool.execute<any[]>(
-          `SELECT name, email, phone, form_name, dt as submitted_at,
-                  source, medium, campaign
-           FROM \`${table}\` ${whereClause}
+          `SELECT ${selectClause} FROM \`${table}\` ${whereClause}
            ORDER BY dt DESC
-           LIMIT ${MAX_SEARCH_RESULTS}`,
+           LIMIT ${MAX_RECORDS_RETURNED}`,
           [normalizedValue]
         ),
       ]);
@@ -460,6 +495,56 @@ export async function executeAnalyticsQuery(
       active_users: 0,
       pageviews: 0,
       error: ga4ErrorMessage(errorType, client.list_name, client.analytics_id!),
+    };
+  }
+}
+
+// ─── List clients ─────────────────────────────────────────────────────────────
+
+export async function executeListClients(input: ListClientsInput): Promise<ListClientsResult> {
+  const { limit = 10, search } = input;
+  const safeLimit = Math.min(Math.max(1, Math.floor(limit)), MAX_RECORDS_RETURNED);
+
+  try {
+    let whereClause = '';
+    const params: string[] = [];
+
+    if (search) {
+      const guard = checkQueryValue(search, 'search');
+      if (guard.blocked) {
+        return { total_available: 0, total_returned: 0, clients: [], error: guard.reason };
+      }
+      whereClause = `WHERE list_name LIKE ? OR domain LIKE ?`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    const [countResult, rows] = await Promise.all([
+      pool.execute<any[]>(
+        `SELECT COUNT(*) as count FROM lists ${whereClause}`,
+        params
+      ),
+      pool.execute<any[]>(
+        `SELECT id, list_name, domain, analytics_id, password, required, notify_client_recipients
+         FROM lists ${whereClause}
+         ORDER BY id DESC
+         LIMIT ?`,
+        [...params, safeLimit]
+      ),
+    ]);
+
+    const total = Number(countResult[0][0]?.count ?? 0);
+
+    return {
+      total_available: total,
+      total_returned: rows[0].length,
+      clients: rows[0] as ListClientsResult['clients'],
+    };
+  } catch (err) {
+    return {
+      total_available: 0,
+      total_returned: 0,
+      clients: [],
+      error: `Failed to retrieve clients: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
 }

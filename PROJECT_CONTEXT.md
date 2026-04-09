@@ -39,9 +39,10 @@ All tool definitions live in `lib/tools.ts`. Execution logic is in `lib/tool-exe
 
 | Tool | What it does |
 |---|---|
+| `list_clients` | Lists clients from the `lists` table ordered by most recently added — default 10, hard cap 25. Supports optional name/domain search filter. Always reports true total count. |
 | `query_leads` | Lead / form submission counts from MySQL via `COUNT(*)` — always returns the real total, never capped |
-| `get_recent_leads` | Returns individual lead records (name, email, phone, date, source) — default 10, hard cap 25 |
-| `search_leads` | Finds leads matching a specific value in a specific field (email, phone, name, zip, source, etc.) — hard cap 25 |
+| `get_recent_leads` | Returns individual lead records (name, email, phone, date, source, keywords, etc.) — default 10, hard cap 25 |
+| `search_leads` | Finds leads matching a specific value in a specific field (email, phone, name, id, zip, source, keywords, etc.) — hard cap 25 |
 | `query_analytics` | GA4 totals — sessions, active users, pageviews for a date range |
 | `query_analytics_breakdown` | GA4 breakdowns — top pages by pageviews (`top_pages`) or top events by count (`top_events`) |
 
@@ -54,19 +55,21 @@ Claude is given today's date in the system prompt and resolves natural-language 
 All limits are centralised in **`lib/limits.ts`** — change them in one place and they propagate everywhere.
 
 ```
-MAX_LEADS_RETURNED        = 25   # get_recent_leads hard cap
-MAX_SEARCH_RESULTS        = 25   # search_leads hard cap
-MAX_BREAKDOWN_ROWS        = 25   # query_leads breakdown rows (source/medium/etc.)
-MAX_ANALYTICS_BREAKDOWN_ROWS = 10  # top_pages / top_events rows
-MAX_CONVERSATION_HISTORY  = 6    # past messages sent to Claude per request (3 pairs)
-MAX_RESPONSE_TOKENS       = 1024 # Claude max output tokens per call
+MAX_RECORDS_RETURNED         = 25   # universal hard cap for any tool returning individual records
+                                    # (get_recent_leads, search_leads, list_clients, and any future record tools)
+MAX_BREAKDOWN_ROWS           = 25   # query_leads breakdown rows (source/medium/etc.)
+MAX_ANALYTICS_BREAKDOWN_ROWS = 10   # top_pages / top_events rows
+MAX_CONVERSATION_HISTORY     = 6    # past messages sent to Claude per request (3 pairs)
+MAX_RESPONSE_TOKENS          = 1024 # Claude max output tokens per call
 ```
+
+**One cap to rule them all:** `MAX_RECORDS_RETURNED` is the single constant used by every tool that returns a list of individual records. Adding a new record-type tool? Import `MAX_RECORDS_RETURNED` — do not create a new constant.
 
 **Why conversation history is capped at 6:** Every message in a conversation is re-sent to Claude on every turn. For a data query tool, questions are mostly independent — 3 back-and-forth pairs is enough to handle natural follow-ups ("what about last month?", "break that down by source") without accumulating expensive context.
 
 **Tool results and token cost:** When leads or analytics data is returned to Claude, that data is sent as input tokens. Large result sets = higher cost. The caps above bound the worst-case token usage per request.
 
-**Claude knows when results are truncated.** For `get_recent_leads` and `search_leads`, a separate `COUNT(*)` query runs in parallel with the records query. The tool result includes both `total_available`/`total_found` (real DB count) and `total_returned` (capped count), so Claude can tell the user "showing 25 of 40 results."
+**Claude knows when results are truncated.** For all record-returning tools, a separate `COUNT(*)` query runs in parallel with the records query. The tool result includes both `total_available`/`total_found` (real DB count) and `total_returned` (capped count), so Claude can tell the user "showing 25 of 40 results." Claude is also instructed via the system prompt to always communicate the true total and mention the cap.
 
 `query_leads` always returns the real count via `COUNT(*)` — the cap never applies to count queries.
 
@@ -74,12 +77,27 @@ MAX_RESPONSE_TOKENS       = 1024 # Claude max output tokens per call
 
 ## MySQL database structure (`newworld_connect`)
 
-- **`lists`** — client directory. Each row is one form/website. Columns: `id`, `list_name`, `domain`, `analytics_id` (GA4 property ID, nullable).
-- **`list_{id}`** — one table per list entry, holds the actual lead rows. Key columns: `name`, `email`, `phone`, `dt` (datetime), `source`, `medium`, `campaign`, `form_name`, `assigned`, `zip`, `address`, `broker`.
+- **`lists`** — client directory. Each row is one form/website. Columns exposed to the agent: `id`, `list_name`, `domain`, `analytics_id` (GA4 property ID, nullable), `password`, `required`, `notify_client_recipients`. Many other columns exist in the table but are not selected.
+- **`list_{id}`** — one table per list entry, holds the actual lead rows. Schemas vary between tables — not all tables have all columns.
 
-Client lookup is always done with `LIKE` on `list_name` or `domain`, so partial names work. Emails matching `@newworldgroup.com` are excluded from all lead queries to filter out internal test submissions.
+### Lead columns always selected (present in every table)
+`id`, `name`, `email`, `phone`, `dt` (as `submitted_at`), `source`, `medium`, `campaign`
 
-Phone search normalises both sides to digits only via `REGEXP_REPLACE` so any formatting in the DB matches any formatting the user types.
+### Lead columns selected when present, NULL otherwise
+`keywords`, `comments` *(truncated to 200 chars)*, `broker`, `price_range`, `property`, `home_type`, `how_did_you_hear`, `movein_date`
+
+**Dynamic SELECT:** `buildLeadSelect(table)` in `tool-executor.ts` queries `INFORMATION_SCHEMA.COLUMNS` before each lead query to check which optional columns exist in that specific table. Missing columns are returned as `NULL` so the query never fails due to schema differences between tables.
+
+### On-demand fields (never shown unless explicitly asked)
+`comments`, `broker`, `price_range`, `property`, `home_type`, `how_did_you_hear`, `movein_date` — these are fetched but the system prompt instructs Claude to never include them in a response unless the user explicitly asks. `keywords` is shown normally.
+
+### Search whitelist
+Fields searchable via `search_leads`: `id`, `email`, `phone`, `name`, `zip`, `address`, `broker`, `source`, `medium`, `campaign`, `keywords`, `assigned`. Field names are validated against this whitelist before use in any query.
+
+### Filtering
+- `@newworldgroup.com` emails are always excluded from all lead queries to filter out internal submissions. Claude is instructed to note this on every lead response: *"Note: newworldgroup.com emails are always excluded from results."* Controlled via `SHOW_EMAIL_EXCLUSION_NOTE` env var (defaults to `true` if unset, set to `'false'` to suppress).
+- Client lookup is always done with `LIKE` on `list_name` or `domain`, so partial names work.
+- Phone search normalises both sides to digits only via `REGEXP_REPLACE` so any formatting in the DB matches any formatting the user types.
 
 ---
 
@@ -206,9 +224,10 @@ lib/
   neon.ts                   # createConversation, saveMessage, getMessages
   neon-sql.ts               # Lazy singleton Neon client (avoids module-level instantiation)
   rate-limit.ts             # checkRateLimit, logRequest, getUsageStats
-  tool-executor.ts          # executeLeadsQuery, executeRecentLeads, executeLeadSearch,
-                            #   executeAnalyticsQuery, executeAnalyticsBreakdown
-  tools.ts                  # Claude tool definitions (input_schema for all 5 tools)
+  tool-executor.ts          # executeListClients, executeLeadsQuery, executeRecentLeads,
+                            #   executeLeadSearch, executeAnalyticsQuery, executeAnalyticsBreakdown
+                            #   buildLeadSelect — dynamic SELECT helper for list_xxx tables
+  tools.ts                  # Claude tool definitions (input_schema for all 6 tools)
 
 scripts/
   init-db.mjs               # Creates/migrates all Neon tables — safe to re-run
@@ -220,7 +239,6 @@ proxy.ts                    # Next.js 16 middleware (named export 'proxy', not '
 types/index.ts              # All shared TypeScript types
 public/nwg_icon.svg         # NWG logo (red SVG, used in header)
 .env.local.example          # Template for all required environment variables
-lib/limits.ts               # All caps/limits in one place
 ```
 
 ---
@@ -252,6 +270,7 @@ See `.env.local.example` for the full template. Key variables:
 | `RATE_LIMIT_PER_IP_PER_HOUR` | Default: 10 — also set in `lib/limits.ts` as fallback |
 | `RATE_LIMIT_DAILY_TOTAL` | Default: 20 — also set in `lib/limits.ts` as fallback |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Full service account JSON as a single-line string |
+| `SHOW_EMAIL_EXCLUSION_NOTE` | Set to `'false'` to suppress the newworldgroup.com exclusion note on lead results. Defaults to `true` if unset. |
 
 ---
 
@@ -271,3 +290,6 @@ See `.env.local.example` for the full template. Key variables:
 - **GA4 `query_analytics_breakdown` limit** — the `limit` parameter in the tool caps at `MAX_ANALYTICS_BREAKDOWN_ROWS` (default 10). Claude uses this as the default if the user doesn't specify a number.
 - **Conversation history window** — only the last `MAX_CONVERSATION_HISTORY` (6) messages are sent to Claude per request. Older messages in a conversation are saved to Neon but not included in the API call context.
 - **Tool result token cost** — tool results (lead records, GA4 data) are sent back to Claude as input tokens. This is where most token usage comes from in complex queries, not the user's message itself.
+- **`list_xxx` schema variance** — not all client tables have the same columns. Always use `buildLeadSelect(table)` when querying lead tables — it checks `INFORMATION_SCHEMA` and substitutes `NULL` for any missing optional column so queries never silently fail and return empty results.
+- **newworldgroup.com exclusion** — internal emails are always filtered out of lead results at the query level. If a lead appears missing, check whether the submitter used a newworldgroup.com email before assuming a bug.
+- **`comments` truncation** — comments are truncated to 200 characters at the SQL level (`LEFT(comments, 200)`) to prevent spam or large free-text fields from inflating tool result token payloads.

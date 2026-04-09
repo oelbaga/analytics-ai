@@ -1,4 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
+import { MAX_RECORDS_RETURNED } from './limits';
 
 export const tools: Anthropic.Tool[] = [
   {
@@ -46,7 +47,7 @@ Optionally filter by a date range. The limit defaults to 10 and can go up to 50.
         },
         limit: {
           type: 'number',
-          description: `Number of records to return (default 10, max 25)`,
+          description: `Number of records to return (default 10, max ${MAX_RECORDS_RETURNED})`,
         },
         start_date: {
           type: 'string',
@@ -79,8 +80,8 @@ Returns all matching submissions with date, name, email, phone, form name, and t
         },
         search_field: {
           type: 'string',
-          enum: ['email', 'phone', 'name', 'zip', 'address', 'broker', 'source', 'medium', 'campaign', 'form_name', 'assigned'],
-          description: 'Which field to search in. Infer this from context — use "email" for email addresses, "phone" for phone numbers, "name" for names, etc.',
+          enum: ['id', 'email', 'phone', 'name', 'zip', 'address', 'broker', 'source', 'medium', 'campaign', 'keywords', 'assigned'],
+          description: 'Which field to search in. Infer this from context — use "id" for a specific record ID, "email" for email addresses, "phone" for phone numbers, "name" for names, etc.',
         },
       },
       required: ['client_name', 'search_value', 'search_field'],
@@ -119,6 +120,26 @@ This is separate from the overall traffic summary — use query_analytics for to
         },
       },
       required: ['client_name', 'start_date', 'end_date', 'breakdown'],
+    },
+  },
+  {
+    name: 'list_clients',
+    description: `Retrieve a list of clients from the database. Use this when someone asks to see, list, or browse clients — e.g. "show me the last 10 clients", "list all clients", "find clients named Vermella".
+Returns the total count of matching clients and up to the capped number of records ordered by most recently added.
+Optionally filter by a search term that matches the client name or domain.`,
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        limit: {
+          type: 'number',
+          description: `Number of records to return (default 10, max ${MAX_RECORDS_RETURNED})`,
+        },
+        search: {
+          type: 'string',
+          description: 'Optional search term to filter clients by name or domain',
+        },
+      },
+      required: [],
     },
   },
   {

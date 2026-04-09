@@ -2,11 +2,10 @@
 //
 // All caps and defaults are defined here so they can be changed in one place.
 
-// Maximum individual lead records returned by get_recent_leads
-export const MAX_LEADS_RETURNED = 25;
-
-// Maximum rows returned by search_leads
-export const MAX_SEARCH_RESULTS = 25;
+// Maximum rows returned for any list of individual records
+// (leads, search results, clients, or any future record-type tool).
+// The true total is always fetched and reported — this only caps what's returned.
+export const MAX_RECORDS_RETURNED = 25;
 
 // Maximum breakdown rows returned by query_leads (source / medium / campaign / form_name)
 export const MAX_BREAKDOWN_ROWS = 25;

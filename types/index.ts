@@ -51,6 +51,7 @@ export interface ToolInput {
 }
 
 export type SearchableField =
+  | 'id'
   | 'email'
   | 'phone'
   | 'name'
@@ -60,7 +61,7 @@ export type SearchableField =
   | 'source'
   | 'medium'
   | 'campaign'
-  | 'form_name'
+  | 'keywords'
   | 'assigned';
 
 export interface SearchLeadsInput {
@@ -70,7 +71,7 @@ export interface SearchLeadsInput {
 }
 
 export interface LeadSearchMatch {
-  form_name: string | null;
+  id: number | null;
   submitted_at: string | null;
   name: string | null;
   email: string | null;
@@ -78,6 +79,14 @@ export interface LeadSearchMatch {
   source: string | null;
   medium: string | null;
   campaign: string | null;
+  keywords: string | null;
+  comments: string | null;
+  broker: string | null;
+  price_range: string | null;
+  property: string | null;
+  home_type: string | null;
+  how_did_you_hear: string | null;
+  movein_date: string | null;
 }
 
 export interface SearchLeadsResult {
@@ -100,14 +109,22 @@ export interface RecentLeadsInput {
 }
 
 export interface LeadRecord {
+  id: number | null;
   name: string | null;
   email: string | null;
   phone: string | null;
-  form_name: string | null;
   submitted_at: string | null;
   source: string | null;
   medium: string | null;
   campaign: string | null;
+  keywords: string | null;
+  comments: string | null;
+  broker: string | null;
+  price_range: string | null;
+  property: string | null;
+  home_type: string | null;
+  how_did_you_hear: string | null;
+  movein_date: string | null;
 }
 
 export interface RecentLeadsResult {
@@ -136,6 +153,28 @@ export interface AnalyticsBreakdownResult {
   end_date: string;
   breakdown: AnalyticsBreakdownType;
   rows: Record<string, unknown>[];
+  error?: string;
+}
+
+export interface ListClientsInput {
+  limit?: number;
+  search?: string;
+}
+
+export interface ClientRow {
+  id: number;
+  list_name: string;
+  domain: string;
+  analytics_id: string | null;
+  password: string | null;
+  required: string | null;
+  notify_client_recipients: string | null;
+}
+
+export interface ListClientsResult {
+  total_available: number;
+  total_returned: number;
+  clients: ClientRow[];
   error?: string;
 }
 
