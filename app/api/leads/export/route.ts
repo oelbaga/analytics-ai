@@ -198,7 +198,7 @@ export async function GET(req: NextRequest) {
     .replace(/[^a-z0-9-]/g, '');
   const filename = `${clientSlug}-leads-${startDate}-${endDate}.xlsx`;
 
-  return new NextResponse(buffer as Buffer, {
+  return new NextResponse(new Uint8Array(buffer), {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
