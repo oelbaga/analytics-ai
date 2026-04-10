@@ -1,8 +1,10 @@
+@use "@/styles/breakpoints" as *;
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
   height: 60px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -10,6 +12,9 @@
   top: 0;
   z-index: 10;
   flex-shrink: 0;
+  @include breakpoint("small") {
+    padding: 0 1.5rem;
+  }
 }
 
 .brand {
@@ -37,11 +42,14 @@
 }
 
 .brandName {
-  font-size: 1.8rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
   line-height: 1;
   letter-spacing: -0.05em;
+  @include breakpoint("small") {
+    font-size: 1.8rem;
+  }
 }
 
 .brandSub {
@@ -68,9 +76,12 @@
 }
 
 .username {
-  font-size: 01rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   font-weight: 500;
+  @include breakpoint("small") {
+    font-size: 01rem;
+  }
 }
 
 .logout {
@@ -102,7 +113,7 @@
   border: 1px solid var(--border);
   border-radius: 6px;
   color: var(--text-secondary);
-  font-size: 01rem;
+  font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.4;
   cursor: pointer;
@@ -110,7 +121,9 @@
     background 0.15s,
     color 0.15s,
     border-color 0.15s;
-
+  @include breakpoint("small") {
+    font-size: 01rem;
+  }
   svg {
     flex-shrink: 0;
   }

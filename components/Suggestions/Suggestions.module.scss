@@ -1,3 +1,5 @@
+@use "@/styles/breakpoints" as *;
+
 .wrapper {
   display: flex;
   flex-direction: column;

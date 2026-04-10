@@ -1,3 +1,5 @@
+@use '@/styles/breakpoints' as *;
+
 .page {
   min-height: 100dvh;
   display: flex;
