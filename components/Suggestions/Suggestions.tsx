@@ -12,7 +12,7 @@ const TEMPLATES = [
   (c: string) => `How many leads did ${c} get in the last 7 days?`,
   (c: string) => `Show me the last 10 leads for ${c}`,
   (c: string) => `How much traffic did ${c} receive last 7 days?`,
-  (c: string) => `How many leads did ${c} get this month?`,
+  (c: string) => `Export leads for ${c} this month to Excel`,
   (c: string) => `Did john@example.com submit a lead for ${c}?`,
   (c: string) => `Show me leads by source for ${c} this month`,
 ];

@@ -61,6 +61,7 @@ MAX_BREAKDOWN_ROWS           = 25   # query_leads breakdown rows (source/medium/
 MAX_ANALYTICS_BREAKDOWN_ROWS = 10   # top_pages / top_events rows
 MAX_CONVERSATION_HISTORY     = 6    # past messages sent to Claude per request (3 pairs)
 MAX_RESPONSE_TOKENS          = 1024 # Claude max output tokens per call
+MAX_EXPORT_ROWS              = 500  # hard cap for Excel export rows (overridable via MAX_EXPORT_ROWS env var)
 ```
 
 **One cap to rule them all:** `MAX_RECORDS_RETURNED` is the single constant used by every tool that returns a list of individual records. Adding a new record-type tool? Import `MAX_RECORDS_RETURNED` — do not create a new constant.
@@ -79,6 +80,9 @@ MAX_RESPONSE_TOKENS          = 1024 # Claude max output tokens per call
 
 - **`lists`** — client directory. Each row is one form/website. Columns exposed to the agent: `id`, `list_name`, `domain`, `analytics_id` (GA4 property ID, nullable), `password`, `required`, `notify_client_recipients`. Many other columns exist in the table but are not selected.
 - **`list_{id}`** — one table per list entry, holds the actual lead rows. Schemas vary between tables — not all tables have all columns.
+
+### Source / medium / campaign normalisation
+At the SQL level, `source`, `medium`, and `campaign` values are normalised before being returned to Claude or included in any response: underscores and hyphens are replaced with spaces and the entire value is lowercased. For example, `Google_Ads` and `google-ads` both become `google ads`. This means Claude never sees raw inconsistent values and fuzzy matching in `search_leads` works correctly across variant spellings.
 
 ### Lead columns always selected (present in every table)
 `id`, `name`, `email`, `phone`, `dt` (as `submitted_at`), `source`, `medium`, `campaign`
@@ -100,6 +104,11 @@ All lead queries deduplicate by email address — if the same email submitted mu
 - **SQL level:** Uses a `MAX(id) ... GROUP BY IFNULL(LOWER(TRIM(email)), CAST(id AS CHAR))` subquery pattern applied to both COUNT and records queries in every lead tool. This ensures counts and returned records are always deduplicated before hitting the application layer.
 - **Cross-list JS level:** For clients with multiple forms, results from each list are merged, sorted by date DESC, then deduplicated again in JavaScript before trimming to the cap. First occurrence of each email (most recent) wins.
 - **Breakdown queries:** Deduplication is applied inside the subquery before grouping by source/medium/campaign/form_name, so breakdown counts reflect unique leads not raw submissions.
+
+### All-time queries
+When no date range is specified (or the user says "all time"), Claude is required to confirm with the user before running the query, since all-time queries can be very large and expensive. Only after confirmation does it call the tool with no date filter.
+
+**Exception:** `search_leads` (searching for a specific email, phone, name, or ID) is always run across all time without asking — it's a targeted lookup, not a bulk data pull, so confirmation would be unnecessary friction.
 
 ### Filtering
 - `@newworldgroup.com` emails are always excluded from all lead queries to filter out internal submissions. Claude is instructed to note this on every lead response: *"Note: newworldgroup.com emails are always excluded from results."* Controlled via `SHOW_EMAIL_EXCLUSION_NOTE` env var (defaults to `true` if unset, set to `'false'` to suppress).
@@ -192,7 +201,7 @@ When GA4 fails, Claude always offers to pull lead data instead.
 
 ## Suggestion chips
 
-The intro screen shows 6 dynamic question chips fetched from `GET /api/clients/recent`, which queries MySQL for the 6 most recently added unique client names (`GROUP BY list_name ORDER BY MAX(id) DESC LIMIT 6`). Each client gets a different question template (leads today, last 10 leads, traffic, leads this month, email search, leads by source). Hardcoded fallback names are shown instantly while the fetch resolves.
+The intro screen shows 6 dynamic question chips fetched from `GET /api/clients/recent`, which queries MySQL for the 6 most recently added unique client names (`GROUP BY list_name ORDER BY MAX(id) DESC LIMIT 6`). Each client gets a different question template (leads today, last 10 leads, traffic, Excel export this month, email search, leads by source). Hardcoded fallback names are shown instantly while the fetch resolves.
 
 ---
 
@@ -213,6 +222,12 @@ app/
     chat/route.ts           # POST — main chat endpoint (rate limit → guard → Claude loop)
     clients/recent/route.ts # GET  — latest 6 client names from MySQL (for suggestion chips)
     conversations/route.ts  # GET  — list conversations
+    leads/export/route.ts   # GET  — Excel export endpoint (auth required, date range required)
+                            #         same dedup/exclusions/normalization as chat tools
+                            #         returns .xlsx with bold header row; capped at MAX_EXPORT_ROWS
+                            #         columns: Name, Email, Phone, Date, Source, Medium + Keywords/Comments if any record has them
+                            #         comments truncated to 50 chars + "…"; cap notice row added if limit hit
+                            #         filename: {client-slug}-leads-{start}-{end}.xlsx
     usage/route.ts          # GET  — usage stats from request_log
 
 components/
@@ -278,6 +293,7 @@ See `.env.local.example` for the full template. Key variables:
 | `RATE_LIMIT_DAILY_TOTAL` | Default: 20 — also set in `lib/limits.ts` as fallback |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | Full service account JSON as a single-line string |
 | `SHOW_EMAIL_EXCLUSION_NOTE` | Set to `'false'` to suppress the newworldgroup.com exclusion note on lead results. Defaults to `true` if unset. |
+| `MAX_EXPORT_ROWS` | Row cap for Excel exports (default: 500). Change without a code deploy. |
 
 ---
 
@@ -299,5 +315,7 @@ See `.env.local.example` for the full template. Key variables:
 - **Tool result token cost** — tool results (lead records, GA4 data) are sent back to Claude as input tokens. This is where most token usage comes from in complex queries, not the user's message itself.
 - **`list_xxx` schema variance** — not all client tables have the same columns. Always use `buildLeadSelect(table)` when querying lead tables — it checks `INFORMATION_SCHEMA` and substitutes `NULL` for any missing optional column so queries never silently fail and return empty results.
 - **newworldgroup.com exclusion** — internal emails are always filtered out of lead results at the query level. If a lead appears missing, check whether the submitter used a newworldgroup.com email before assuming a bug.
-- **`comments` truncation** — comments are truncated to 200 characters at the SQL level (`LEFT(comments, 200)`) to prevent spam or large free-text fields from inflating tool result token payloads.
+- **`comments` truncation** — in chat tool results, comments are truncated to 200 characters at the SQL level (`LEFT(comments, 200)`) to prevent spam or large free-text fields from inflating token payloads. In Excel exports, comments are fetched at 51 chars and trimmed to 50 + "…" if truncated, to keep column widths reasonable.
 - **Lead deduplication** — all lead counts and records are deduplicated by email at the SQL level before returning. Null-email records are always treated as unique. If you see lower counts than raw `SELECT COUNT(*)` in phpMyAdmin, this is expected and correct behaviour.
+- **Excel export** — generated in-memory via `exceljs` (no file storage). Uses the same dedup, exclusions, and source/medium/campaign normalization as the chat tools. `xlsx` was intentionally avoided due to high-severity CVEs; use `exceljs` for any future spreadsheet work. Optional columns (Keywords, Comments) are only included in the sheet if at least one record in the result set has a value for that column.
+- **All-time query confirmation** — Claude will always ask the user to confirm before running any query without a date range. This is enforced via the system prompt, not at the code level.

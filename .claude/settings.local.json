@@ -4,7 +4,8 @@
       "Bash(npx create-next-app@latest . --typescript --no-tailwind --eslint --app --no-src-dir --turbopack --import-alias \"@/*\")",
       "Bash(npm install:*)",
       "Bash(npx tsc:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }

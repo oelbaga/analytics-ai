@@ -2,6 +2,10 @@
 //
 // All caps and defaults are defined here so they can be changed in one place.
 
+// Maximum rows returned in an Excel export (bypasses chat cap but still bounded)
+// Override via MAX_EXPORT_ROWS env var
+export const MAX_EXPORT_ROWS = Number(process.env.MAX_EXPORT_ROWS ?? 500);
+
 // Maximum rows returned for any list of individual records
 // (leads, search results, clients, or any future record-type tool).
 // The true total is always fetched and reported — this only caps what's returned.
